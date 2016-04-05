@@ -16,13 +16,16 @@ md-content {
   &[md-scroll-xy] {
   }
 
-  &.md-padding {
-    padding: 8px;
+  // For iOS allow disabling of momentum scrolling
+  // @see issue #2640.
+
+  &.md-no-momentum {
+    -webkit-overflow-scrolling: auto;
+  }
+
+  @media print {
+    overflow: visible !important;
   }
 }
 
-@media (min-width: $layout-breakpoint-sm) {
-  md-content.md-padding {
-    padding: 16px;
-  }
-}
+

@@ -1,14 +1,26 @@
-<div ng-app="selectDemoBasic" ng-controller="AppCtrl" layout="column" layout-align="center center" style="min-height: 300px;">
-  <p>A select can be used to select a single element from a list:</p>
-  <md-select ng-model="neighborhood" placeholder="Neighborhood">
-    <md-option ng-value="opt" ng-repeat="opt in neighborhoods">{{ opt }}</md-option>
-  </md-select>
-  <p class="result">{{ neighborhood ? 'You selected ' + neighborhood : 'You haven\'t selected a neighborhood yet' }}</p>
+<div ng-controller="AppCtrl as ctrl" class="md-padding" ng-cloak>
+  <div>
+    <h1 class="md-title">Enter an address</h1>
+    <div layout="row">
 
-  <p>A select can also specify its own label and be used to pick multiple entries:</p>
-  <md-select multiple ng-model="multiNeighborhood" placeholder="Neighborhood">
-    <md-select-label>{{ multiNeighborhood.length ? multiNeighborhood.join(', ') : 'Choose some' }}</md-select-label>
-    <md-option ng-value="opt" ng-repeat="opt in neighborhoods2">{{ opt }}</md-option>
-  </md-select>
-  <p class="result">{{ multiNeighborhood ? 'You selected ' + multiNeighborhood : 'You haven\'t selected anything yet' }}</p>
+      <md-input-container>
+        <label>Street Name</label>
+        <input>
+      </md-input-container>
+
+      <md-input-container>
+        <label>City</label>
+        <input>
+      </md-input-container>
+
+      <md-input-container>
+        <label>State</label>
+        <md-select ng-model="ctrl.userState">
+          <md-option ng-repeat="state in ctrl.states" value="{{state.abbrev}}" ng-disabled="$index === 1">
+            {{state.abbrev}}
+          </md-option>
+        </md-select>
+      </md-input-container>
+    </div>
+  </div>
 </div>

@@ -4,19 +4,45 @@ var buildConfig = require('../../../config/build.config.js');
 // We don't need to publish all of a doc's data to the app, that will
 // add many kilobytes of loading overhead.
 function publicDocData(doc, extraData) {
-  var githubBaseUrl = buildConfig.repository + '/blob/master/src/components/';
-  doc = doc || {};
-  var jsName = doc.module.split('material.components.').pop();
+  var options = _.assign(extraData || {}, { hasDemo: (doc.docType === 'directive') });
+
+  // This RegEx always retrieves the last source descriptor.
+  // For example it retrieves from `/opt/material/src/core/services/ripple/ripple.js` the following
+  // source descriptor: `src/core/`.
+  // This is needed because components are not only located in `src/components`.
+  var descriptor = doc.fileInfo.filePath.toString().match(/src\/.*?\//g).pop();
+  if (descriptor) {
+    descriptor = descriptor.substring(descriptor.indexOf('/') + 1, descriptor.lastIndexOf('/'));
+  }
+
+  return buildDocData(doc, options, descriptor || 'components');
+}
+
+function coreServiceData(doc, extraData) {
+  var options = _.assign(extraData || {}, { hasDemo: false });
+  return buildDocData(doc, options, 'core');
+}
+
+function buildDocData(doc, extraData, descriptor) {
+
+  var module = 'material.' + descriptor;
+  var githubBaseUrl = buildConfig.repository + '/blob/master/src/' + descriptor + '/';
+  var jsName = doc.module.split(module + '.').pop();
+
+  var basePathFromProjectRoot = 'src/' + descriptor + '/';
+  var filePath = doc.fileInfo.filePath;
+  var indexOfBasePath = filePath.indexOf(basePathFromProjectRoot);
+  var path = filePath.substr(indexOfBasePath + basePathFromProjectRoot.length, filePath.length);
+
   return _.assign({
     name: doc.name,
     type: doc.docType,
     outputPath: doc.outputPath,
     url: doc.path,
     label: doc.label || doc.name,
-    hasDemo: (doc.docType === 'directive'),
-    module: doc.module,
-    githubUrl: githubBaseUrl + jsName + '/' + jsName + '.js'
-  }, extraData || {});
+    module: module,
+    githubUrl: githubBaseUrl + path
+  }, extraData);
 }
 
 module.exports = function componentsGenerateProcessor(log, moduleMap) {
@@ -57,13 +83,26 @@ module.exports = function componentsGenerateProcessor(log, moduleMap) {
       .filter() //remove null items
       .value();
 
+    var EXPOSED_CORE_SERVICES = '$mdMedia';
+
+    var services = _(docs).filter(function(doc) {
+      return doc.docType == 'service' &&
+        doc.module == 'material.core' &&
+        EXPOSED_CORE_SERVICES.indexOf(doc.name) != -1;
+    }).map(coreServiceData).value();
+
+    docs.push({
+      name: 'SERVICES',
+      template: 'constant-data.template.js',
+      outputPath: 'js/services-data.js',
+      items: services
+    });
+
     docs.push({
       name: 'COMPONENTS',
       template: 'constant-data.template.js',
       outputPath: 'js/components-data.js',
       items: components
     });
-
   }
 };
-

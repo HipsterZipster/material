@@ -1,6 +1,3 @@
-(function() {
-  'use strict';
-
   /**
    * @ngdoc module
    * @name material.core.componentRegistry
@@ -86,7 +83,9 @@
         function resolveWhen() {
           var dfd = pendings[handle];
           if ( dfd ) {
-            dfd.resolve( instance );
+            dfd.forEach(function (promise) {
+              promise.resolve(instance);
+            });
             delete pendings[handle];
           }
         }
@@ -105,7 +104,10 @@
           if ( instance )  {
             deferred.resolve( instance );
           } else {
-            pendings[handle] = deferred;
+            if (pendings[handle] === undefined) {
+              pendings[handle] = [];
+            }
+            pendings[handle].push(deferred);
           }
 
           return deferred.promise;
@@ -120,6 +122,3 @@
     }
 
   }
-
-
-})();

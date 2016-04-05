@@ -49,7 +49,7 @@ describe('$mdComponentRegistry Service', function() {
       var el = setup('md-component-id="left"');
       var instance = $mdComponentRegistry.get('left');
 
-      expect(instance).toNotBe(null);
+      expect(instance).not.toBe(null);
     });
 
     it('should deregister component when element is destroyed', function() {
@@ -70,6 +70,22 @@ describe('$mdComponentRegistry Service', function() {
       $timeout.flush();
 
       expect(instance).toBe(resolved);
+    });
+
+    it('should allow multiple registrations', function() {
+      var promise = $mdComponentRegistry.when('left');
+      var promise1 = $mdComponentRegistry.when('left');
+      var el = setup('md-component-id="left"');
+      var instance = $mdComponentRegistry.get('left');
+      var resolved = false;
+      var resolved1 = false;
+
+      promise.then(function(inst){   resolved = inst;  });
+      promise1.then(function(inst){   resolved1 = inst;  });
+      $timeout.flush();
+
+      expect(instance).toBe(resolved);
+      expect(instance).toBe(resolved1);
     });
 
     it('should wait for next component registration', function() {

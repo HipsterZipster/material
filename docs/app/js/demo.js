@@ -1,26 +1,29 @@
 DocsApp
 .directive('layoutAlign', function() { return angular.noop; })
 .directive('layout', function() { return angular.noop; })
-.directive('docsDemo', [
-  '$mdUtil',
-function($mdUtil) {
+.directive('docsDemo', ['$mdUtil', function($mdUtil) {
   return {
     restrict: 'E',
     scope: true,
     templateUrl: 'partials/docs-demo.tmpl.html',
     transclude: true,
-    controller: ['$scope', '$element', '$attrs', '$interpolate', DocsDemoCtrl],
+    controller: ['$scope', '$element', '$attrs', '$interpolate', 'codepen', DocsDemoCtrl],
     controllerAs: 'demoCtrl',
     bindToController: true
   };
 
-  function DocsDemoCtrl($scope, $element, $attrs, $interpolate) {
+  function DocsDemoCtrl($scope, $element, $attrs, $interpolate, codepen) {
     var self = this;
 
     self.interpolateCode = angular.isDefined($attrs.interpolateCode);
     self.demoId = $interpolate($attrs.demoId || '')($scope.$parent);
     self.demoTitle = $interpolate($attrs.demoTitle || '')($scope.$parent);
     self.demoModule = $interpolate($attrs.demoModule || '')($scope.$parent);
+
+    $attrs.$observe('demoTitle',  function(value) { self.demoTitle  = value || self.demoTitle; });
+    $attrs.$observe('demoId',     function(value) { self.demoId     = value || self.demoId; });
+    $attrs.$observe('demoModule', function(value) { self.demoModule = value || self.demoModule;  });
+
     self.files = {
       css: [], js: [], html: []
     };
@@ -49,6 +52,16 @@ function($mdUtil) {
         .concat(self.files.js || [])
         .concat(self.files.css || [])
         .concat(self.files.html || []);
+
+    };
+
+    self.editOnCodepen = function() {
+      codepen.editOnCodepen({
+        title: self.demoTitle,
+        files: self.files,
+        id: self.demoId,
+        module: self.demoModule
+      });
     };
 
     function convertName(name) {
@@ -77,7 +90,7 @@ function($mdUtil) {
 
     return function postLink(scope, element, attr, docsDemoCtrl) {
       docsDemoCtrl.addFile(
-        $interpolate(name)(scope), 
+        $interpolate(name)(scope),
         $q.when(scope.$eval(contentsAttr) || html)
       );
       element.remove();
