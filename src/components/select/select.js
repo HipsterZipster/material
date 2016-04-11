@@ -334,7 +334,9 @@ function SelectDirective($mdSelect, $mdUtil, $mdTheming, $mdAria, $compile, $par
         $mdAria.expect(element, 'aria-label', labelText);
       }
 
-      scope.$watch(selectMenuCtrl.selectedLabels, syncLabelText);
+      scope.$watch(function() {
+          return selectMenuCtrl.selectedLabels();
+      }, syncLabelText);
 
       function syncLabelText() {
         if (selectContainer) {
@@ -519,6 +521,8 @@ function SelectMenuDirective($parse, $mdUtil, $mdTheming) {
   function preLink(scope, element, attr, ctrls) {
     var selectCtrl = ctrls[0];
 
+    element.addClass('_md');     // private md component indicator for styling
+    
     $mdTheming(element);
     element.on('click', clickListener);
     element.on('keypress', keyListener);

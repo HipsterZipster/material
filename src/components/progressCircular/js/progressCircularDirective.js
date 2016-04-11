@@ -48,13 +48,18 @@ angular
   .directive('mdProgressCircular', MdProgressCircularDirective);
 
 /* @ngInject */
-function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdTheming,
+function MdProgressCircularDirective($window, $mdProgressCircular, $mdTheming,
                                      $mdUtil, $interval, $log) {
 
+  // Note that this shouldn't use use $$rAF, because it can cause an infinite loop
+  // in any tests that call $animate.flush.
+  var rAF = $window.requestAnimationFrame || angular.noop;
+  var cAF = $window.cancelAnimationFrame || angular.noop;
   var DEGREE_IN_RADIANS = $window.Math.PI / 180;
   var MODE_DETERMINATE = 'determinate';
   var MODE_INDETERMINATE = 'indeterminate';
   var DISABLED_CLASS = '_md-progress-circular-disabled';
+  var INDETERMINATE_CLASS = '_md-mode-indeterminate';
 
   return {
     restrict: 'E',
@@ -98,7 +103,6 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
     var rotationIndeterminate = 0;
     var lastAnimationId = 0;
     var lastDrawFrame;
-    var lastRotationFrame;
     var interval;
 
     $mdTheming(element);
@@ -110,8 +114,12 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
       startIndeterminateAnimation();
     }
 
-    scope.$on('$destroy', function() {
-      cleanupIndeterminateAnimation(true);
+    scope.$on('$destroy', function(){
+      cleanupIndeterminateAnimation();
+
+      if (lastDrawFrame) {
+        cAF(lastDrawFrame);
+      }
     });
 
     scope.$watchGroup(['value', 'mdMode', function() {
@@ -147,7 +155,7 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
         } else {
           var newValue = clamp(newValues[0]);
 
-          cleanupIndeterminateAnimation( true );
+          cleanupIndeterminateAnimation();
 
           element.attr('aria-valuenow', newValue);
           renderCircle(clamp(oldValues[0]), newValue);
@@ -161,6 +169,7 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
     scope.$watch('mdDiameter', function(newValue) {
       var diameter = getSize(newValue);
       var strokeWidth = getStroke(diameter);
+      var transformOrigin = (diameter / 2) + 'px';
       var dimensions = {
         width: diameter + 'px',
         height: diameter + 'px'
@@ -173,7 +182,15 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
 
       // Usually viewBox sets the dimensions for the SVG, however that doesn't
       // seem to be the case on IE10.
-      svg.css(dimensions);
+      // Important! The transform origin has to be set from here and it has to
+      // be in the format of "Ypx Ypx Ypx", otherwise the rotation wobbles in
+      // IE and Edge, because they don't account for the stroke width when
+      // rotating. Also "center" doesn't help in this case, it has to be a
+      // precise value.
+      svg
+        .css(dimensions)
+        .css('transform-origin', transformOrigin + ' ' + transformOrigin + ' ' + transformOrigin);
+
       element.css(dimensions);
       path.css('stroke-width',  strokeWidth + 'px');
     });
@@ -191,7 +208,7 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
       if (animateTo === animateFrom) {
         path.attr('d', getSvgArc(animateTo, diameter, pathDiameter, rotation));
       } else {
-        lastDrawFrame = $$rAF(function animation(now) {
+        lastDrawFrame = rAF(function animation(now) {
           var currentTime = $window.Math.max(0, $window.Math.min((now || $mdUtil.now()) - startTime, animationDuration));
 
           path.attr('d', getSvgArc(
@@ -201,11 +218,9 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
             rotation
           ));
 
-          lastDrawFrame && lastDrawFrame();
-
           // Do not allow overlapping animations
           if (id === lastAnimationId && currentTime < animationDuration) {
-            lastDrawFrame = $$rAF(animation);
+            lastDrawFrame = rAF(animation);
           }
         });
       }
@@ -231,36 +246,6 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
 
     function startIndeterminateAnimation() {
       if (!interval) {
-        var startTime = $mdUtil.now();
-        var animationDuration = $mdProgressCircular.rotationDurationIndeterminate;
-        var radius = getSize(scope.mdDiameter) / 2;
-
-        // Spares us at least a little bit of string concatenation.
-        radius = ' ' + radius + ', ' + radius;
-
-        // This animates the indeterminate rotation. This can be achieved much easier
-        // with CSS keyframes, however IE11 seems to have problems centering the rotation
-        // which causes a wobble in the indeterminate animation.
-        lastRotationFrame = $$rAF(function animation(now) {
-          var timestamp = now || $mdUtil.now();
-          var currentTime = timestamp - startTime;
-          var rotation = $mdProgressCircular.easingPresets.linearEase(currentTime, 0, 360, animationDuration);
-
-          path.attr('transform', 'rotate(' + rotation + radius + ')');
-
-          if (interval) {
-            lastRotationFrame && lastRotationFrame();
-            lastRotationFrame = $$rAF(animation);
-          } else {
-            path.removeAttr('transform');
-          }
-
-          // Reset the animation
-          if (currentTime >= animationDuration) {
-            startTime = timestamp;
-          }
-        });
-
         // Note that this interval isn't supposed to trigger a digest.
         interval = $interval(
           animateIndeterminate,
@@ -270,21 +255,18 @@ function MdProgressCircularDirective($$rAF, $window, $mdProgressCircular, $mdThe
         );
 
         animateIndeterminate();
-        element.removeAttr('aria-valuenow');
+
+        element
+          .addClass(INDETERMINATE_CLASS)
+          .removeAttr('aria-valuenow');
       }
     }
 
-    function cleanupIndeterminateAnimation( clearLastFrames ) {
+    function cleanupIndeterminateAnimation() {
       if (interval) {
         $interval.cancel(interval);
         interval = null;
-      }
-
-      if ( clearLastFrames === true ){
-        lastDrawFrame && lastDrawFrame();
-        lastRotationFrame && lastRotationFrame();
-
-        lastDrawFrame = lastRotationFrame = undefined;
+        element.removeClass(INDETERMINATE_CLASS);
       }
     }
   }
