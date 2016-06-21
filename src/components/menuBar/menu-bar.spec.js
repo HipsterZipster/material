@@ -26,11 +26,27 @@ describe('material.components.menuBar', function() {
       });
 
       describe('ARIA', function() {
+        
         it('sets role="menubar" on the menubar', function() {
           var menuBar = setup();
           var ariaRole = menuBar[0].getAttribute('role');
           expect(ariaRole).toBe('menubar');
         });
+        
+        it('should set the role on the menu trigger correctly', inject(function($compile, $rootScope) {
+          var el = $compile(
+            '<md-menu-bar>' +
+              '<md-menu ng-repeat="i in [1, 2, 3]">' +
+                '<md-button id="triggerButton" ng-click="lastClicked = $index"></md-button>' +
+                '<md-menu-content></md-menu-content>' +
+              '</md-menu>' +
+            '</md-menu-bar>'
+          )($rootScope);
+
+          $rootScope.$digest();
+
+          expect(el[0].querySelector('#triggerButton').getAttribute('role')).toBe('menuitem');
+        }));
       });
 
       describe('nested menus', function() {
@@ -342,11 +358,18 @@ describe('material.components.menuBar', function() {
       function setup(attrs) {
         attrs = attrs || '';
 
-        var template = '<md-menu-item type="checkbox" ' + attrs + '>Test Item</md-menu-item>'
+        var template = '<md-menu-item type="checkbox" ' + attrs + '>Test Item</md-menu-item>';
 
         var checkboxMenuItem;
         inject(function($compile, $rootScope) {
-          checkboxMenuItem = $compile(template)($rootScope);
+          // We need to have a `md-menu-bar` as a parent of our menu item, because the menu-item
+          // is only wrapping and indenting the content if it's inside of a menu bar.
+          var menuBarMock = angular.element('<md-menu-bar>');
+          var itemEl = angular.element(template);
+
+          menuBarMock.append(itemEl);
+          checkboxMenuItem = $compile(itemEl)($rootScope);
+
           $rootScope.$digest();
         });
         return checkboxMenuItem;
@@ -398,11 +421,18 @@ describe('material.components.menuBar', function() {
       function setup(attrs) {
         attrs = attrs || '';
 
-        var template = '<md-menu-item type="radio" ' + attrs + '>Test Item</md-menu-item>'
+        var template = '<md-menu-item type="radio" ' + attrs + '>Test Item</md-menu-item>';
 
         var radioMenuItem;
         inject(function($compile, $rootScope) {
-          radioMenuItem = $compile(template)($rootScope);
+          // We need to have a `md-menu-bar` as a parent of our menu item, because the menu-item
+          // is only wrapping and indenting the content if it's inside of a menu bar.
+          var menuBarMock = angular.element('<md-menu-bar>');
+          var itemEl = angular.element(template);
+
+          menuBarMock.append(itemEl);
+          radioMenuItem = $compile(itemEl)($rootScope);
+
           $rootScope.$digest();
         });
         return radioMenuItem;

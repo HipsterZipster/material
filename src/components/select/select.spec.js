@@ -181,6 +181,17 @@ describe('<md-select>', function() {
     expect($rootScope.myForm.select.$touched).toBe(true);
   }));
 
+  it('applies the md-input-focused class to the container when focused with the keyboard', function() {
+    var element = setupSelect('ng-model="val"');
+    var select = element.find('md-select');
+
+    select.triggerHandler('focus');
+    expect(element.hasClass('md-input-focused')).toBe(true);
+
+    select.triggerHandler('blur');
+    expect(element.hasClass('md-input-focused')).toBe(false);
+  });
+
   it('restores focus to select when the menu is closed', inject(function($document) {
     var select = setupSelect('ng-model="val"').find('md-select');
     openSelect(select);
@@ -193,6 +204,9 @@ describe('<md-select>', function() {
 
     // FIXME- does not work with minified, jquery
     //expect($document[0].activeElement).toBe(select[0]);
+
+    // Clean up the DOM after the test.
+    $document[0].body.removeChild(select[0]);
   }));
 
   it('should remove the input-container focus state', inject(function($rootScope, $timeout) {
@@ -567,6 +581,29 @@ describe('<md-select>', function() {
         expect($rootScope.testForm.$pristine).toBe(true);
       }));
 
+
+      it('should forward the model value to the hidden select', inject(function($rootScope, $timeout, $compile) {
+        $rootScope.opts = [1, 2, 3, 4];
+        var select = $compile('<form>' +
+          '<md-select ng-model="model" name="testing-select">' +
+            '<md-option ng-repeat="opt in opts">{{ opt }}</md-option>' +
+          '</md-select></form>')($rootScope).find('select'); // not md-select
+
+        $rootScope.$digest();
+        $timeout.flush();
+
+        expect(select.val()).toBeFalsy();
+        $rootScope.$apply('model = 3');
+        expect(select.val()).toBe('3');
+      }));
+
+      it('should forward the name attribute to the hidden select', inject(function($rootScope, $timeout, $compile) {
+        var select = $compile('<form>' +
+          '<md-select ng-model="model" name="testing-select">' +
+          '</md-select></form>')($rootScope).find('select');
+
+        expect(select.attr('name')).toBe('testing-select');
+      }));
     });
 
     describe('view->model', function() {
@@ -823,6 +860,59 @@ describe('<md-select>', function() {
           expect($rootScope.testForm.$valid).toBe(false);
       }));
 
+      it('properly validates required attribute based on available options', inject(function($rootScope, $compile) {
+        var template =
+          '<form name="testForm">' +
+          '  <md-select ng-model="model" required="required">' +
+          '    <md-option ng-repeat="opt in opts" ng-value="opt"></md-option>' +
+          '  </md-select>' +
+          '</form>';
+
+        $rootScope.opts = [1, 2, 3, 4];
+
+        $compile(template)($rootScope);
+
+        // Option 0 is not available; should be false
+        $rootScope.model = 0;
+        $rootScope.$digest();
+        expect($rootScope.testForm.$valid).toBe(false);
+
+        // Option 1 is available; should be true
+        $rootScope.model = 1;
+        $rootScope.$digest();
+        expect($rootScope.testForm.$valid).toBe(true);
+      }));
+
+      it('properly validates required attribute with object options', inject(function($rootScope, $compile) {
+        var template =
+          '<form name="testForm">' +
+          '  <md-select ng-model="model" ng-model-options="{ trackBy: \'$value.id\' }" required="required">' +
+          '    <md-option ng-repeat="opt in opts" ng-value="opt"></md-option>' +
+          '  </md-select>' +
+          '</form>';
+
+        $rootScope.opts = [
+          { id: 1, value: 'First'  },
+          { id: 2, value: 'Second' },
+          { id: 3, value: 'Third'  },
+          { id: 4, value: 'Fourth' }
+        ];
+
+        $compile(template)($rootScope);
+
+        // There is no value selected yet, so the validation should currently fail.
+        $rootScope.$digest();
+
+        expect($rootScope.testForm.$valid).toBe(false);
+
+        // Select any valid option, to confirm that the ngModel properly detects the
+        // tracked option.
+        $rootScope.model = $rootScope.opts[0];
+        $rootScope.$digest();
+
+        expect($rootScope.testForm.$valid).toBe(true);
+      }));
+
       it('should keep the form pristine when model is predefined', inject(function($rootScope, $timeout, $compile) {
         $rootScope.model = [1, 2];
         $rootScope.opts = [1, 2, 3, 4];
@@ -835,6 +925,29 @@ describe('<md-select>', function() {
 
         expect($rootScope.testForm.$pristine).toBe(true);
       }));
+
+      it('should correctly update the input containers label', inject(function($rootScope) {
+        var el = setupSelect('ng-required="isRequired" ng-model="someModel"');
+        var label = el.find('label');
+
+        expect(label).not.toHaveClass('md-required');
+
+        $rootScope.$apply('isRequired = true');
+
+        expect(label).toHaveClass('md-required');
+      }));
+
+      it('should correctly update the input containers label when asterisk is disabled', inject(function($rootScope) {
+        var el = setupSelect('ng-required="isRequired" md-no-asterisk ng-model="someModel"');
+        var label = el.find('label');
+
+        expect(label).not.toHaveClass('md-required');
+
+        $rootScope.$apply('isRequired = true');
+
+        expect(label).not.toHaveClass('md-required');
+      }));
+
     });
 
     describe('view->model', function() {
@@ -1025,6 +1138,16 @@ describe('<md-select>', function() {
         var el = setupSelect('ng-model="someModel"', [1, 2, 3]).find('md-select');
         pressKey(el, 50);
         expect($rootScope.someModel).toBe(2);
+      }));
+
+      it('disallows selection of disabled options', inject(function($rootScope) {
+        var optsTemplate =
+          '<md-option value="1">1</md-option>' +
+          '<md-option value="2" ng-disabled="true">2</md-option>';
+        var el = setupSelect('ng-model="someModel"', optsTemplate).find('md-select');
+
+        pressKey(el, 50);
+        expect($rootScope.someModel).toBe(undefined);
       }));
     });
 

@@ -1,5 +1,5 @@
 
-describe('md-date-picker', function() {
+describe('md-datepicker', function() {
   // When constructing a Date, the month is zero-based. This can be confusing, since people are
   // used to seeing them one-based. So we create these aliases to make reading the tests easier.
   var JAN = 0, FEB = 1, MAR = 2, APR = 3, MAY = 4, JUN = 5, JUL = 6, AUG = 7, SEP = 8, OCT = 9,
@@ -21,12 +21,7 @@ describe('md-date-picker', function() {
          'ng-disabled="isDisabled">' +
     '</md-datepicker>';
 
-  var fakeInputModule = angular.module('fakeInputModule', [])
-      .directive('mdInputContainer', function() {
-        return {controller: angular.noop};
-      });
-
-  beforeEach(module('material.components.datepicker', 'ngAnimateMock', 'fakeInputModule'));
+  beforeEach(module('material.components.datepicker', 'ngAnimateMock'));
 
   beforeEach(inject(function($rootScope, $injector) {
     $compile = $injector.get('$compile');
@@ -120,7 +115,7 @@ describe('md-date-picker', function() {
     }).not.toThrow();
   });
 
-  it('should throw an error when inside of md-input-container', function() {
+  it('should work inside of md-input-container', function() {
     var template =
         '<md-input-container>' +
           '<md-datepicker ng-model="myDate"></md-datepicker>' +
@@ -128,7 +123,7 @@ describe('md-date-picker', function() {
 
     expect(function() {
       $compile(template)(pageScope);
-    }).toThrowError('md-datepicker should not be placed inside md-input-container.');
+    }).not.toThrow();
   });
 
   describe('ngMessages suport', function() {
@@ -238,7 +233,7 @@ describe('md-date-picker', function() {
 
         expect(formCtrl.$error['maxdate']).toBeTruthy();
       });
-      
+
       it('should set `filtered` $error flag on the form', function() {
         pageScope.dateFilter = function(date) {
           return date.getDay() === 1;
@@ -300,7 +295,7 @@ describe('md-date-picker', function() {
       populateInputElement('cheese');
       expect(controller.inputContainer).toHaveClass('md-datepicker-invalid');
     });
-    
+
     it('should not update the model when value is not enabled', function() {
       pageScope.dateFilter = function(date) {
         return date.getDay() === 1;
@@ -371,6 +366,29 @@ describe('md-date-picker', function() {
       // Fake an escape event closing the calendar.
       pageScope.$broadcast('md-calendar-close');
 
+    });
+
+    it('should open and close the floating calendar pane element via an expression on the scope', function() {
+      pageScope.isOpen = false;
+      createDatepickerInstance('<md-datepicker ng-model="myDate" md-is-open="isOpen"></md-datepicker>');
+
+      expect(controller.calendarPane.offsetHeight).toBe(0);
+      expect(controller.isCalendarOpen).toBe(false);
+
+      pageScope.$apply(function() {
+        pageScope.isOpen = true;
+      });
+
+      // Open the calendar externally
+      expect(controller.calendarPane.offsetHeight).toBeGreaterThan(0);
+      expect(controller.isCalendarOpen).toBe(true);
+
+      // Close the calendar via the datepicker
+      controller.$scope.$apply(function() {
+        controller.closeCalendarPane();
+      });
+      expect(pageScope.isOpen).toBe(false);
+      expect(controller.isCalendarOpen).toBe(false);
     });
 
     it('should adjust the position of the floating pane if it would go off-screen', function() {
@@ -523,7 +541,7 @@ describe('md-date-picker', function() {
       expect(pageScope.myDate).toEqual(date);
       expect(controller.ngModelCtrl.$modelValue).toEqual(date);
 
-      expect(controller.inputElement.value).toEqual(date.toLocaleDateString());
+      expect(controller.inputElement.value).toEqual('6/1/2015');
       expect(controller.calendarPaneOpenedFrom).toBe(null);
       expect(controller.isCalendarOpen).toBe(false);
     });
@@ -538,6 +556,33 @@ describe('md-date-picker', function() {
 
       scope.$emit('md-calendar-change', new Date());
       expect(controller.inputContainer).not.toHaveClass('md-datepicker-invalid');
+    });
+  });
+
+  it('should be able open the calendar when the input is focused', function() {
+    createDatepickerInstance('<md-datepicker ng-model="myDate" md-open-on-focus></md-datepicker>');
+    controller.ngInputElement.triggerHandler('focus');
+    expect(document.querySelector('md-calendar')).toBeTruthy();
+  });
+
+  describe('hiding the icons', function() {
+    var calendarSelector = '.md-datepicker-button .md-datepicker-calendar-icon';
+    var triangleSelector = '.md-datepicker-triangle-button';
+
+    it('should be able to hide the calendar icon', function() {
+      createDatepickerInstance('<md-datepicker ng-model="myDate" md-hide-icons="calendar"></md-datepicker>');
+      expect(element.querySelector(calendarSelector)).toBeNull();
+    });
+
+    it('should be able to hide the triangle icon', function() {
+      createDatepickerInstance('<md-datepicker ng-model="myDate" md-hide-icons="triangle"></md-datepicker>');
+      expect(element.querySelector(triangleSelector)).toBeNull();
+    });
+
+    it('should be able to hide all icons', function() {
+      createDatepickerInstance('<md-datepicker ng-model="myDate" md-hide-icons="all"></md-datepicker>');
+      expect(element.querySelector(calendarSelector)).toBeNull();
+      expect(element.querySelector(triangleSelector)).toBeNull();
     });
   });
 });

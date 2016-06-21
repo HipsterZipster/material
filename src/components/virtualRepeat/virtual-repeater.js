@@ -612,6 +612,10 @@ VirtualRepeatController.prototype.repeatListExpression_ = function(scope) {
 VirtualRepeatController.prototype.containerUpdated = function() {
   // If itemSize is unknown, attempt to measure it.
   if (!this.itemSize) {
+    // Make sure to clean up watchers if we can (see #8178)
+    if(this.unwatchItemSize_ && this.unwatchItemSize_ !== angular.noop){
+      this.unwatchItemSize_();
+    }
     this.unwatchItemSize_ = this.$scope.$watchCollection(
         this.repeatListExpression,
         angular.bind(this, function(items) {
@@ -679,10 +683,12 @@ VirtualRepeatController.prototype.virtualRepeatUpdate_ = function(items, oldItem
   var itemsLength = items && items.length || 0;
   var lengthChanged = false;
 
-  // If the number of items shrank, scroll up to the top.
+  // If the number of items shrank
   if (this.items && itemsLength < this.items.length && this.container.getScrollOffset() !== 0) {
     this.items = items;
+    var previousScrollOffset = this.container.getScrollOffset();
     this.container.resetScroll();
+    this.container.scrollTo(previousScrollOffset);
     return;
   }
 
